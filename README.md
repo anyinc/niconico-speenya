@@ -67,7 +67,7 @@ gcloud beta run domain-mappings create \
 
 ### 機能拡張
 
-`https://[DOMAIN_NAME]/extensions.zip` にアクセスすると、zipファイルがダウンロードできるので、それを `chrome://extensions` で表示される、機能拡張一覧ページにドラッグ&ドロップしてください。
+`https://[DOMAIN_NAME]/extension.zip` にアクセスすると、zipファイルがダウンロードできるので、それを `chrome://extensions` で表示される、機能拡張一覧ページにドラッグ&ドロップしてください。
 
 ## ライセンス
 
