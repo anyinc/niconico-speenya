@@ -6,11 +6,15 @@ import { storage } from './storage';
 import { extension } from './extension';
 import { data } from './data';
 
+const cors = require('cors');
+
 config.dev = process.env.NODE_ENV !== 'production';
 
 const app = express();
 
 data.createTable();
+
+app.use(cors());
 
 app.use('/api', api(io));
 app.use('/storage', storage());
