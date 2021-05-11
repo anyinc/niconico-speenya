@@ -1,22 +1,50 @@
 /* global chrome */
+import io from 'socket.io-client';
 
-import { CommentJson, StampJson } from '@/messages';
+import { CommentJson, StampJson, Stamp } from '@/messages';
 
 const APP_ID = chrome.runtime.id;
+const APP_VERSION = chrome.runtime.getManifest().version;
 
 const NOT_FOUND_IMAGE_URL = `chrome-extension://${APP_ID}/images/404.png`;
 
 class SpeenyaClient {
+  private socket: SocketIOClient.Socket;
   private video: HTMLVideoElement | undefined;
 
   constructor(private readonly host: string) {
-    this.host = host;
+    this.socket = io(host, { autoConnect: false });
+
+    this.socket.on('comment', (comment: CommentJson) => this.handleComment(comment));
+    this.socket.on('stamp', (stamp: StampJson) => this.handleStamp(stamp));
   }
+
+  public connect(): void {
+    this.socket.connect();
+    this.prefetchStamps();
+    console.log(`niconico speenya v${APP_VERSION}: connect to ${this.host}`);
+  }
+
+  public disconnect(): void {
+    this.socket.disconnect();
+    console.log(`niconico speenya v${APP_VERSION}: disconnect from ${this.host}`);
+  }
+
+  private prefetchStamps(): void {
+    fetch(`${this.host}/api/stamps`)
+      .then((res) => res.json())
+      .then((json) => {
+        (json as Stamp[]).forEach((stamp) => {
+          new Image().src = `${this.host}/storage/stamps/${stamp.path}`;
+        });
+      });
+  }
+
   private rootElement(): Element {
     return document.fullscreenElement !== null ? document.fullscreenElement : document.body;
   }
 
-  public handleComment(comment: CommentJson): void {
+  private handleComment(comment: CommentJson): void {
     const body = comment.body;
     const color = comment.color ?? '#000000';
     const size = comment.size ?? 10;
@@ -74,7 +102,7 @@ class SpeenyaClient {
     animation.onfinish = () => node.remove();
   }
 
-  public handleStamp(stamp: StampJson): void {
+  private handleStamp(stamp: StampJson): void {
     const url = stamp.url ?? NOT_FOUND_IMAGE_URL;
     const duration = stamp.duration ?? 1000;
     const easing = 'ease';
@@ -160,15 +188,28 @@ class SpeenyaClient {
 
 const speenya = new SpeenyaClient(process.env.SERVER_URL!);
 
+chrome.storage.sync.get({ enabled: true }, (items) => {
+  if (items.enabled) {
+    speenya.connect();
+  } else {
+    speenya.disconnect();
+  }
+});
+
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace !== 'sync') return;
+
+  if (changes.enabled) {
+    if (changes.enabled.newValue) {
+      speenya.connect();
+    } else {
+      speenya.disconnect();
+    }
+  }
+});
+
 chrome.runtime.onMessage.addListener((message) => {
   if (message === 'show_webcam') {
     speenya.showWebcam();
-  }
-  const body = message.body;
-  if(message.type === "comment") {
-    speenya.handleComment(body);
-  }
-  if(message.type === "stamp") {
-    speenya.handleStamp(body);
   }
 });
